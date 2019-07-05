@@ -12,6 +12,7 @@ import glob
 import random
 from shutil import copyfile
 
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-y", "--yolo", default='yolo-coco',
@@ -39,14 +40,10 @@ def find_argument(text,string, indx):
 	return arg, indx2
 
 def read_from_xml(text):
-	
-	#print (text) 
-
 	indx = 0
 	indx2 = 0
 
 	truths = []
-	# truths_name = []
 	while True:
 
 		name, indx = find_argument(text,'name', indx)
@@ -59,69 +56,69 @@ def read_from_xml(text):
 		xmax, _ = find_argument(text,'xmax', indx)
 		ymax, _ = find_argument(text,'ymax', indx)
 
-
-		#print (name, xmin, ymin, xmax, ymax)
-
-
 		truths.append(([name, int(float(xmin)), int(float(ymin)), int(float(xmax)), int(float(ymax))], name))
-		#truths_name.append(name)
 
 	return truths
 
-out = open('labels-' + args['size'] +  '.txt', 'w')
+def main():
 
-xmls = glob.glob("all/*.xml")
+	out = open('labels-' + args['size'] +  '.txt', 'w')
 
-k = 0 
+	xmls = glob.glob("all/*.xml")
 
-good_ones = []
+	k = 0 
 
-for xml in xmls:
-	f = open(xml, 'r')
+	good_ones = []
 
-	text = f.read()
+	for xml in xmls:
+		f = open(xml, 'r')
 
-	bad = False
-	print (xml)
+		text = f.read()
 
-	boxes = read_from_xml(text)
-	found_all = True
-	for _, name in boxes:
-		found_one = False
-		for label in LABELS:
-			if name == label:
-				found_one = True
-		if not found_one:
-			found_all = False
-	
-	pick = False
-	if found_all and len(boxes) > 5:
-		if args['size'] == 'big':
-			pick = True
-		if args['size'] == 'medium' and random.randint(0,5) == 0:
-			pick = True
-		if args['size'] == 'small' and random.randint(0,10) == 0:
-			pick = True
-		if args['size'] == 'tiny' and random.randint(0,60) == 0:
-			pick = True
-		if pick:
-			out.write('test/' + args['size'] + '/' + xml[4:-3] + 'jpg\n')
-			good_ones.append(xml)
-			for box, _ in boxes:
-				out.write(box[0] +' ' + str(box[1])+ ' ' + str(box[2]) + ' '+ str(box[3])+' '+ str(box[4]) + '\n')
-			pick = False
-			out.write(';\n')
+		bad = False
+		print (xml)
 
-			copyfile(xml, 'test/' + args['size'] + '/'  + xml[4:])
-			copyfile(xml[0:-3] + 'jpg', 'test/' + args['size'] + '/' + xml[4:-3] + 'jpg')
+		boxes = read_from_xml(text)
+		found_all = True
+		for _, name in boxes:
+			found_one = False
+			for label in LABELS:
+				if name == label:
+					found_one = True
+			if not found_one:
+				found_all = False
+		
+		pick = False
+		if found_all and len(boxes) > 5:
+			if args['size'] == 'big':
+				pick = True
+			if args['size'] == 'medium' and random.randint(0,5) == 0:
+				pick = True
+			if args['size'] == 'small' and random.randint(0,10) == 0:
+				pick = True
+			if args['size'] == 'tiny' and random.randint(0,60) == 0:
+				pick = True
+			if pick:
+				out.write('test/' + args['size'] + '/' + xml[4:-3] + 'jpg\n')
+				good_ones.append(xml)
+				for box, _ in boxes:
+					out.write(box[0] +' ' + str(box[1])+ ' ' + str(box[2]) + ' '+ str(box[3])+' '+ str(box[4]) + '\n')
+				pick = False
+				out.write(';\n')
 
-	print (k)
-	k += 1
+				copyfile(xml, 'test/' + args['size'] + '/'  + xml[4:])
+				copyfile(xml[0:-3] + 'jpg', 'test/' + args['size'] + '/' + xml[4:-3] + 'jpg')
+
+		print (k)
+		k += 1
 
 
 
-print (good_ones)
-print (len(good_ones), k)
+	print (good_ones)
+	print (len(good_ones), k)
+
+if __name__ == "__main__":
+	main()
 
 
 

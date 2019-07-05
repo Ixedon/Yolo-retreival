@@ -9,6 +9,7 @@ import time
 import cv2
 import os
 
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-y", "--yolo", default='yolo-coco',
@@ -18,7 +19,7 @@ ap.add_argument("-c", "--confidence", type=float, default=0.5,
 ap.add_argument("-t", "--threshold", type=float, default=0.3,
 	help="threshold when applyong non-maxima suppression")
 ap.add_argument("-s", "--size", default='big',
-	help="Selcet size of test set to use (small, medium, big)")
+	help="Selcet size of test set to use (tiny, small, medium, big)")
 
 args = vars(ap.parse_args())
 
@@ -38,9 +39,6 @@ net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
 ln = net.getLayerNames()
 ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
-# initialize the video stream, pointer to output video file, and
-# frame dimensions
-(W, H) = (None, None)
 
 
 def read_labels():
@@ -64,15 +62,11 @@ def read_labels():
 			arr = line.split()
 			boxes.append([arr[0], *[int(x) for x in arr[1:]]])
 
-	# print (len(examples))
-	# print (examples[0])
 
 	return examples
 
 def run_yolo(image):
 
-	# read the next frame from the file
-	# for i in range(100):
 	frame = image
 
 	(H, W) = frame.shape[:2]
@@ -184,7 +178,6 @@ def evaluate(ground_truth, prediction):
 
 	for truth in ground_truth:
 		scores = []
-		#print (truth)
 		for pred in prediction:
 			scores.append(score (truth, pred))
 		
@@ -192,13 +185,7 @@ def evaluate(ground_truth, prediction):
 			continue
 
 		best_score = max(scores)
-		#print (best_score)
-
 		indx = scores.index(best_score)
-
-		# print(prediction [indx])
-		# print (scores)
-
 		final_score = 0
 
 		if truth[0] == prediction[indx][0]:
@@ -207,30 +194,29 @@ def evaluate(ground_truth, prediction):
 
 		all_score += final_score
 
-	#print(1 - (abs (len(ground_truth) - len(prediction))/max(len(prediction), len(ground_truth))))
-
 	all_score += (1 - (abs (len(ground_truth) - len(prediction))/max(len(prediction), len(ground_truth))))* len(ground_truth)
-	#print (all_score)
 
 	return all_score/len(ground_truth)/3
 
+def main():
 
 
+	all_acc = 0
+	count = 0
 
+	labels = read_labels()
+	lab_len = str(len(labels))
 
-all_acc = 0
-count = 0
+	start = time.time()
+	for img_path, truths in labels:
+		image = cv2.imread(img_path)
+		preds = run_yolo(image)
+		acc = evaluate (truths, preds)
+		print (str(count + 1) + '/' + lab_len, "acc", str(int (10000 * acc)/100) + "%")	
+		all_acc += acc
+		count +=1
+	print ("\nAvg acc: ", str(int (10000 * all_acc/count)/100) + "%\n")
+	print ("Total time: ", time.time()-start, "\nAvg time:", (time.time()-start )/count)
 
-labels = read_labels()
-lab_len = str(len(labels))
-
-start = time.time()
-for img_path, truths in labels:
-	image = cv2.imread(img_path)
-	preds = run_yolo(image)
-	acc = evaluate (truths, preds)
-	print (str(count + 1) + '/' + lab_len, "acc", str(int (10000 * acc)/100) + "%")	
-	all_acc += acc
-	count +=1
-print ("\nAvg acc: ", str(int (10000 * all_acc/count)/100) + "%\n")
-print ("Total time: ", time.time()-start, "\nAvg time:", (time.time()-start )/count)	
+if __name__ == "__main__":
+	main()
