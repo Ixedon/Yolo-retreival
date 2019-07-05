@@ -9,15 +9,19 @@ import time
 import cv2
 import os
 import glob
+import random
+from shutil import copyfile
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-y", "--yolo", required=True,
+ap.add_argument("-y", "--yolo", default='yolo-coco',
 	help="base path to YOLO directory")
 ap.add_argument("-c", "--confidence", type=float, default=0.5,
 	help="minimum probability to filter weak detections")
 ap.add_argument("-t", "--threshold", type=float, default=0.3,
 	help="threshold when applyong non-maxima suppression")
+ap.add_argument("-s", "--size", default='big',
+	help="Selcet size of test set to generate (small, medium, big)")
 
 args = vars(ap.parse_args())
 
@@ -25,57 +29,49 @@ args = vars(ap.parse_args())
 labelsPath = os.path.sep.join([args["yolo"], "coco.names"])
 LABELS = open(labelsPath).read().strip().split("\n")
 
+random.seed(78)
 
+def find_argument(text,string, indx):
+	indx = text.find('<' + string + '>', indx , len(text))
+	indx2 = text.find('</'+ string + '>', indx, len(text))
+	arg = text[indx + 6 :indx2]
+
+	return arg, indx2
 
 def read_from_xml(text):
 	
-	print (text) 
+	#print (text) 
 
 	indx = 0
 	indx2 = 0
 
+	xmax = '-1'
+	ymax = '-1'
+
 	truths = []
-	truths_name = []
+	# truths_name = []
 	while True:
-		indx = text.find('<name>', indx , len(text))
-		indx2 = text.find('</name>', indx2, len(text))
+
+		name, indx = find_argument(text,'name', indx)
 
 		if indx == -1:
-			#print ("end")
 			break
 
-		name = text[indx + 6 :indx2]
-
-		indx = text.find('<xmin>', indx, len(text))
-		indx2 = text.find('</xmin>', indx2 + 1, len(text))
-
-		xmin = text[indx + 6 :indx2]
-
-		indx = text.find('<ymin>', indx, len(text))
-		indx2 = text.find('</ymin>', indx2 + 1, len(text))
-
-		ymin = text[indx + 6 :indx2]
-		
-
-		indx = text.find('<xmax>', indx, len(text))
-		indx2 = text.find('</xmax>', indx2 + 1, len(text))
-
-		xmax = text[indx + 6 :indx2]
-
-		indx = text.find('<ymax>', indx, len(text))
-		indx2 = text.find('</ymax>', indx2 + 1, len(text))
-
-		ymax = text[indx + 6 :indx2]
-
-		print (name, xmin, ymin, xmax, ymax)
+		xmin, _ = find_argument(text,'xmin', indx)
+		ymin, _ = find_argument(text,'ymin', indx)
+		xmax, _ = find_argument(text,'xmax', indx)
+		ymax, _ = find_argument(text,'ymax', indx)
 
 
-		truths.append([name, int(xmin), int(ymin), int(xmax), int(ymax)])
-		truths_name.append(name)
+		#print (name, xmin, ymin, xmax, ymax)
 
-	return (truths, truths_name)
 
-out = open('labels.txt', 'w')
+		truths.append(([name, int(float(xmin)), int(float(ymin)), int(float(xmax)), int(float(ymax))], name))
+		#truths_name.append(name)
+
+	return truths
+
+out = open('labels-' + args['size'] +  '.txt', 'w')
 
 xmls = glob.glob("all/*.xml")
 
@@ -89,22 +85,36 @@ for xml in xmls:
 	text = f.read()
 
 	bad = False
+	print (xml)
 
-	classes = read_from_xml(text)
-	boxes, names = classes
+	boxes = read_from_xml(text)
 	found_all = True
-	for obj in classes:
+	for _, name in boxes:
 		found_one = False
 		for label in LABELS:
-			if obj == label:
+			if name == label:
 				found_one = True
 		if not found_one:
 			found_all = False
 	
-	if found_all and len(boxes) > 4:
-		good_ones.append(xml)
-		#out.write()
+	pick = False
+	if found_all and len(boxes) > 5:
+		if args['size'] == 'big':
+			pick = True
+		if args['size'] == 'medium' and random.randint(0,5) == 0:
+			pick = True
+		if args['size'] == 'small' and random.randint(0,10) == 0:
+			pick = True
+		if pick:
+			out.write('test/' + args['size'] + '/' + xml[4:-3] + 'jpg\n')
+			good_ones.append(xml)
+			for box, _ in boxes:
+				out.write(box[0] +' ' + str(box[1])+ ' ' + str(box[2]) + ' '+ str(box[3])+' '+ str(box[4]) + '\n')
+			pick = False
+			out.write(';\n')
 
+			copyfile(xml, 'test/' + args['size'] + '/'  + xml[4:])
+			copyfile(xml[0:-3] + 'jpg', 'test/' + args['size'] + '/' + xml[4:-3] + 'jpg')
 
 	print (k)
 	k += 1
@@ -114,16 +124,6 @@ for xml in xmls:
 print (good_ones)
 print (len(good_ones), k)
 
-
-# for xml in good_ones:
-
-# 	inp = open(xml, 'r')
-
-# 	text = inp.read()
-
-# 	out = open('Failed.py', 'w')
-# 	out.write()
-# 	out.close()
 
 
 

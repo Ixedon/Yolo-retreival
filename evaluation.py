@@ -11,12 +11,14 @@ import os
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-y", "--yolo", required=True,
+ap.add_argument("-y", "--yolo", default='yolo-coco',
 	help="base path to YOLO directory")
 ap.add_argument("-c", "--confidence", type=float, default=0.5,
 	help="minimum probability to filter weak detections")
 ap.add_argument("-t", "--threshold", type=float, default=0.3,
 	help="threshold when applyong non-maxima suppression")
+ap.add_argument("-s", "--size", default='big',
+	help="Selcet size of test set to use (small, medium, big)")
 
 args = vars(ap.parse_args())
 
@@ -41,60 +43,31 @@ ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 (W, H) = (None, None)
 
 
-def read_from_xml():
-	filename = 'test/2007_000032.xml'
+def read_labels():
+	
 
-	f = open(filename, 'r')
+	f = open('labels-' + args['size'] +  '.txt', 'r')
 
-	text = f.read()
-	#print (text) 
+	examples = []
+	boxes = []
 
-	indx = 0
-	indx2 = 0
+	for line in f:
+		#print (line.split())
+		if line[-5:] == '.jpg\n':
+			img = line[:-1]
 
-	truths = []
-	while True:
-		indx = text.find('<name>', indx , len(text))
-		indx2 = text.find('</name>', indx2, len(text))
+		elif line == ';\n':
+			if len(boxes) > 0:
+				examples.append((img, boxes))
+			boxes = []
+		else:
+			arr = line.split()
+			boxes.append([arr[0], *[int(x) for x in arr[1:]]])
 
-		if indx == -1:
-			print ("end")
-			break
+	# print (len(examples))
+	# print (examples[0])
 
-		name = text[indx + 6 :indx2]
-
-		indx = text.find('<xmin>', indx, len(text))
-		indx2 = text.find('</xmin>', indx2 + 1, len(text))
-
-		xmin = text[indx + 6 :indx2]
-
-		indx = text.find('<ymin>', indx, len(text))
-		indx2 = text.find('</ymin>', indx2 + 1, len(text))
-
-		ymin = text[indx + 6 :indx2]
-		
-
-		indx = text.find('<xmax>', indx, len(text))
-		indx2 = text.find('</xmax>', indx2 + 1, len(text))
-
-		xmax = text[indx + 6 :indx2]
-
-		indx = text.find('<ymax>', indx, len(text))
-		indx2 = text.find('</ymax>', indx2 + 1, len(text))
-
-		ymax = text[indx + 6 :indx2]
-
-		print (name, xmin, ymin, xmax, ymax)
-
-
-		truths.append([name, int(xmin), int(ymin), int(xmax), int(ymax)])
-
-	return truths
-
-
-
-
-
+	return examples
 
 def run_yolo(image):
 
@@ -170,7 +143,7 @@ def run_yolo(image):
 
 			ret.append([LABELS[classIDs[i]], x,y,x+w,y+h])
 	
-			print (LABELS[classIDs[i]], x,y,x+w,y+h)
+			#print (LABELS[classIDs[i]], x,y,x+w,y+h)
 	return ret
 
 
@@ -211,7 +184,7 @@ def evaluate(ground_truth, prediction):
 
 	for truth in ground_truth:
 		scores = []
-		print (truth)
+		#print (truth)
 		for pred in prediction:
 			scores.append(score (truth, pred))
 		
@@ -220,8 +193,8 @@ def evaluate(ground_truth, prediction):
 
 		indx = scores.index(best_score)
 
-		print(prediction [indx])
-		print (scores)
+		# print(prediction [indx])
+		# print (scores)
 
 		final_score = 0
 
@@ -231,10 +204,10 @@ def evaluate(ground_truth, prediction):
 
 		all_score += final_score
 
-	print(1 - (abs (len(ground_truth) - len(prediction))/max(len(prediction), len(ground_truth))))
+	#print(1 - (abs (len(ground_truth) - len(prediction))/max(len(prediction), len(ground_truth))))
 
 	all_score += (1 - (abs (len(ground_truth) - len(prediction))/max(len(prediction), len(ground_truth))))* len(ground_truth)
-	print (all_score)
+	#print (all_score)
 
 	return all_score/len(ground_truth)/3
 
@@ -242,15 +215,16 @@ def evaluate(ground_truth, prediction):
 
 
 
+all_acc = 0
+count = 0
 
-image = cv2.imread('test/2007_000032.jpg')
-
-preds = run_yolo(image)
-
-print ("\n\n")
-
-truths =  read_from_xml()
-
-#score = evaluate (truths, truths)
-score = evaluate (truths, preds)
-print ("acc", str(int (10000 * score)/100) + "%")
+labels = read_labels()
+lab_len = str(len(labels))
+for img_path, truths in labels:
+	image = cv2.imread(img_path)
+	preds = run_yolo(image)
+	acc = evaluate (truths, preds)
+	print (str(count + 1) + '/' + lab_len, "acc", str(int (10000 * acc)/100) + "%")	
+	all_acc += acc
+	count +=1
+print ("Avg acc: ", str(int (10000 * all_acc/count)/100) + "%")	
