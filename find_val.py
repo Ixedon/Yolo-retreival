@@ -21,7 +21,7 @@ ap.add_argument("-c", "--confidence", type=float, default=0.5,
 ap.add_argument("-t", "--threshold", type=float, default=0.3,
 	help="threshold when applyong non-maxima suppression")
 ap.add_argument("-s", "--size", default='big',
-	help="Selcet size of test set to generate (small, medium, big)")
+	help="Selcet size of test set to generate (tiny, small, medium, big)")
 
 args = vars(ap.parse_args())
 
@@ -44,9 +44,6 @@ def read_from_xml(text):
 
 	indx = 0
 	indx2 = 0
-
-	xmax = '-1'
-	ymax = '-1'
 
 	truths = []
 	# truths_name = []
@@ -104,6 +101,8 @@ for xml in xmls:
 		if args['size'] == 'medium' and random.randint(0,5) == 0:
 			pick = True
 		if args['size'] == 'small' and random.randint(0,10) == 0:
+			pick = True
+		if args['size'] == 'tiny' and random.randint(0,60) == 0:
 			pick = True
 		if pick:
 			out.write('test/' + args['size'] + '/' + xml[4:-3] + 'jpg\n')
