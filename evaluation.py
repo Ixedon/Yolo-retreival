@@ -187,7 +187,9 @@ def evaluate(ground_truth, prediction):
 		#print (truth)
 		for pred in prediction:
 			scores.append(score (truth, pred))
-		
+
+		if len(scores) == 0:
+			continue
 		best_score = max(scores)
 		#print (best_score)
 
@@ -223,6 +225,7 @@ lab_len = str(len(labels))
 for img_path, truths in labels:
 	image = cv2.imread(img_path)
 	preds = run_yolo(image)
+	print("name = ", img_path)
 	acc = evaluate (truths, preds)
 	print (str(count + 1) + '/' + lab_len, "acc", str(int (10000 * acc)/100) + "%")	
 	all_acc += acc
